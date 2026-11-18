@@ -32,8 +32,8 @@ if (-not $env:WEB_EXT_API_SECRET) {
     # Copying from the web page often picks up a space or line break, which makes
     # Mozilla reject the signature, so strip all whitespace.
     $secret = [System.Net.NetworkCredential]::new('', $secure).Password -replace '\s', ''
-    if ($secret -notmatch '^[0-9a-fA-F]{64}$') {
-        Write-Warning "The secret is $($secret.Length) characters after removing spaces. Mozilla's secrets are 64 letters and digits (0-9, a-f); check that you copied the whole JWT secret and nothing else."
+    if ($secret.Length -ne 64 -or $secret -notmatch '^[0-9A-Za-z]+$') {
+        Write-Warning "The secret is $($secret.Length) characters after removing spaces. Mozilla's secrets are 64 letters and digits; check that you copied the whole JWT secret and nothing else."
     }
     $env:WEB_EXT_API_SECRET = $secret
     $secret = $null
