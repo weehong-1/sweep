@@ -1,0 +1,12 @@
+# Build output: recreated by build.ps1
+dist/
+
+# Signed Firefox packages from sign-firefox.ps1
+signed/
+
+# Browser profiles used by tests/e2e/installed.js (large, and hold browser data)
+.test-profiles/
+
+# Tools that may be installed locally
+node_modules/
+web-ext-artifacts/

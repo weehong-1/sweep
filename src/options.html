@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sweep</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="page">
+  <header class="top">
+    <img src="icons/48.png" width="32" height="32" alt="">
+    <h1>Sweep<small data-i18n="optTitle"></small></h1>
+  </header>
+
+  <section class="card">
+    <label class="switch-row">
+      <span class="txt">
+        <strong data-i18n="autoClean"></strong>
+        <span class="note" data-i18n="autoCleanNote"></span>
+      </span>
+      <input id="autoClean" type="checkbox" class="switch">
+    </label>
+  </section>
+
+  <section class="card">
+    <label class="switch-row">
+      <span class="txt">
+        <strong data-i18n="updateCheck"></strong>
+        <span class="note" id="updateCheckNote"></span>
+      </span>
+      <input id="updateCheck" type="checkbox" class="switch">
+    </label>
+  </section>
+
+  <section class="card">
+    <label class="switch-row">
+      <span class="txt">
+        <strong data-i18n="keepWhatsApp"></strong>
+        <span class="note" id="keepWhatsAppNote"></span>
+      </span>
+      <input id="keepWhatsApp" type="checkbox" class="switch">
+    </label>
+  </section>
+
+  <section class="card">
+    <label class="switch-row">
+      <span class="txt">
+        <strong data-i18n="keepTelegram"></strong>
+        <span class="note" id="keepTelegramNote"></span>
+      </span>
+      <input id="keepTelegram" type="checkbox" class="switch">
+    </label>
+  </section>
+
+  <section class="card">
+    <label class="switch-row">
+      <span class="txt">
+        <strong id="whitelistTitle" data-i18n="whitelistLabel"></strong>
+        <span class="note" id="whitelistHint"></span>
+      </span>
+      <input id="useWhitelist" type="checkbox" class="switch">
+    </label>
+    <textarea id="whitelist" rows="7" spellcheck="false" placeholder="example.com" aria-labelledby="whitelistTitle"></textarea>
+    <!-- Save belongs to the whitelist only; the switches above save as they are flipped. -->
+    <footer>
+      <p id="status" role="status"></p>
+      <button id="save" type="button" class="primary" data-i18n="btnSave"></button>
+    </footer>
+  </section>
+
+  <script src="clean.js"></script>
+  <script src="update.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sweep</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body class="popup">
+  <svg class="sprite" aria-hidden="true">
+    <symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-downloads" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19.5h14"/></symbol>
+    <symbol id="i-cache" viewBox="0 0 24 24"><path d="m12 4 8 4-8 4-8-4 8-4ZM4 12l8 4 8-4M4 16l8 4 8-4"/></symbol>
+    <symbol id="i-formData" viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="2.5"/><path d="M8 9.5h8M8 13.5h5"/></symbol>
+    <symbol id="i-cookies" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="9" cy="9.5" r=".6"/><circle cx="14.5" cy="10.5" r=".6"/><circle cx="10.5" cy="14.5" r=".6"/><circle cx="15" cy="15" r=".6"/></symbol>
+    <symbol id="i-localStorage" viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="3"/><path d="M5 6.5v11c0 1.7 3.1 3 7 3s7-1.3 7-3v-11M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/></symbol>
+    <symbol id="i-indexedDB" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 10h16M4 14.5h16M10 5v14"/></symbol>
+    <symbol id="i-serviceWorkers" viewBox="0 0 24 24"><rect x="7.5" y="7.5" width="9" height="9" rx="1.5"/><path d="M10 4v3.5M14 4v3.5M10 16.5V20M14 16.5V20M4 10h3.5M4 14h3.5M16.5 10H20M16.5 14H20"/></symbol>
+    <symbol id="i-fileSystems" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2H9l2 2.2h7.5a2 2 0 0 1 2 2v7.8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-10Z"/></symbol>
+    <symbol id="i-passwords" viewBox="0 0 24 24"><circle cx="8.5" cy="15.5" r="4"/><path d="m11.5 12.5 8-8M16 8l2.5 2.5M13.5 10.5 15.5 12.5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M18 7h2M4 17h3M12 17h8"/><circle cx="15.5" cy="7" r="2.5"/><circle cx="9.5" cy="17" r="2.5"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m11 4 1.9 5.1L18 11l-5.1 1.9L11 18l-1.9-5.1L4 11l5.1-1.9L11 4ZM18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3.5 7 2.8v5.2c0 4.6-3.2 7.8-7 9-3.800-1.2-7-4.400-7-9V6.300l7-2.800Z"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M5 11a7 7 0 0 1 12-4.5L19 8.500M19 4.500v4h-4M19 13a7 7 0 0 1-12 4.500L5 15.500M5 19.500v-4h4"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M12 4a8 8 0 0 0-6.900 12L4 20l4.100-1.100A8 8 0 1 0 12 4Z"/><path d="M9 10.500h6M9 13.500h4"/></symbol>
+    <symbol id="i-spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" stroke-width="2.6" opacity=".3"/><path d="M20.5 12A8.5 8.5 0 0 0 12 3.5" stroke-width="2.6"/></symbol>
+    <symbol id="i-update" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 16V8.5M8.5 11.5 12 8l3.5 3.5"/></symbol>
+    <symbol id="i-plane" viewBox="0 0 24 24"><path d="M20.500 4 3.500 10.500l5.500 2.500 2.500 5.500L20.500 4ZM9 13l4.500-3.500"/></symbol>
+  </svg>
+
+  <header class="top">
+    <img src="icons/48.png" width="28" height="28" alt="">
+    <h1>Sweep</h1>
+    <button id="settings" type="button" class="icon-btn">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-settings"/></svg>
+    </button>
+  </header>
+
+  <section>
+    <h2 id="rangeHeading" data-i18n="rangeLabel"></h2>
+    <div id="range" class="segmented" role="radiogroup" aria-labelledby="rangeHeading"></div>
+  </section>
+
+  <div id="quick" class="quick"></div>
+
+  <p id="updateNote" class="update-note" hidden><span></span><button type="button" data-i18n="updateOpen"></button></p>
+
+  <section>
+    <h2 class="with-legend">
+      <span data-i18n="typesLabel"></span>
+      <span class="legend"><span class="dot"></span><span data-i18n="hasData"></span></span>
+    </h2>
+    <div id="types" class="tiles"></div>
+  </section>
+
+  <button id="run" type="button" class="primary">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><use id="runIcon" href="#i-sparkle"/></svg>
+    <span id="runLabel" data-i18n="btnClean"></span>
+    <span id="count" class="badge"></span>
+  </button>
+  <p id="status" role="status"></p>
+
+  <script src="clean.js"></script>
+  <script src="update.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
