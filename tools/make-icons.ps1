@@ -10,10 +10,16 @@ foreach ($size in 16, 32, 48, 128) {
     $g.SmoothingMode = 'AntiAlias'
     $g.Clear([System.Drawing.Color]::Transparent)
 
+    # The Chrome Web Store asks for the 128px icon to be 96px of artwork with
+    # 16px of transparent padding on every side. The small sizes fill the square.
+    $pad = if ($size -eq 128) { 16 } else { 0 }
+    $s = $size - 2 * $pad
+    $g.TranslateTransform($pad, $pad)
+
     # Rounded tile
-    $r = [single]($size * 0.22)
+    $r = [single]($s * 0.22)
     $d = $r * 2
-    $max = [single]($size - $d)
+    $max = [single]($s - $d)
     $tile = [System.Drawing.Drawing2D.GraphicsPath]::new()
     $tile.AddArc(0, 0, $d, $d, 180, 90)
     $tile.AddArc($max, 0, $d, $d, 270, 90)
@@ -25,17 +31,17 @@ foreach ($size in 16, 32, 48, 128) {
 
     # Broom handle
     $white = [System.Drawing.Color]::White
-    $pen = [System.Drawing.Pen]::new($white, [single]($size * 0.1))
+    $pen = [System.Drawing.Pen]::new($white, [single]($s * 0.1))
     $pen.StartCap = 'Round'
     $pen.EndCap = 'Round'
-    $g.DrawLine($pen, [single]($size * 0.74), [single]($size * 0.18), [single]($size * 0.50), [single]($size * 0.50))
+    $g.DrawLine($pen, [single]($s * 0.74), [single]($s * 0.18), [single]($s * 0.50), [single]($s * 0.50))
 
     # Broom head
     $head = [System.Drawing.PointF[]]@(
-        [System.Drawing.PointF]::new($size * 0.36, $size * 0.40),
-        [System.Drawing.PointF]::new($size * 0.62, $size * 0.60),
-        [System.Drawing.PointF]::new($size * 0.46, $size * 0.86),
-        [System.Drawing.PointF]::new($size * 0.14, $size * 0.62)
+        [System.Drawing.PointF]::new($s * 0.36, $s * 0.40),
+        [System.Drawing.PointF]::new($s * 0.62, $s * 0.60),
+        [System.Drawing.PointF]::new($s * 0.46, $s * 0.86),
+        [System.Drawing.PointF]::new($s * 0.14, $s * 0.62)
     )
     $g.FillPolygon([System.Drawing.SolidBrush]::new($white), $head)
 

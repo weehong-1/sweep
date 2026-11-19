@@ -4,6 +4,9 @@ dist/
 # Signed Firefox packages from sign-firefox.ps1
 signed/
 
+# Chrome Web Store upload package: recreated by package-chromium.ps1
+store/*.zip
+
 # Browser profiles used by tests/e2e/installed.js (large, and hold browser data)
 .test-profiles/
 
