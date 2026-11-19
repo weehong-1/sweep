@@ -8,13 +8,18 @@ Sweep does not collect, store on any server, sell or share any information about
 
 ## What Sweep accesses
 
-- **Browsing data you ask it to clear.** When you press Clean, or when automatic cleaning is on, Sweep tells the browser to remove the kinds of data you selected: history, download history, cache, form data, cookies and site storage. Sweep does not read the contents of that data.
-- **Browsing history and download history.** Sweep asks the browser whether there are history entries and download entries in the time range you chose, and whether pages were visited since the last clean. It uses the answer only to show a dot on the items that have something to clear. It does not keep, display or transmit the addresses or file names.
-- **Cookie host names (Firefox only, and only if you use the cookie whitelist).** To leave whitelisted sites alone, Sweep lists which sites have cookies. It does not read cookie values.
+- **Browsing data you ask it to clear.** When you press Clean, or when automatic cleaning is on, Sweep tells the browser to remove the kinds of data you selected: history, download history, cache, form data, cookies and site storage. Apart from what is described below for history and downloads, Sweep does not read the contents of that data.
+- **Browsing history and download history.** Sweep uses these in three ways, all on your device:
+  - It asks the browser whether there are history entries and download entries in the time range you chose, and whether pages were visited since the last clean, to show a dot on the items that have something to clear.
+  - When you open an item's keep list, it shows you the names of the sites in your history (for Downloads, the sites you downloaded from) and how many entries each has, so you can choose sites that are never cleared.
+  - When you have chosen sites to keep for history or downloads, it removes the entries one by one and leaves those of the kept sites. For downloads it removes the record only, never the downloaded file.
+
+  Site names are shown only to you, in the popup. Sweep does not transmit addresses, site names or file names anywhere.
+- **Cookie host names (Firefox only, and only if you use the cookie whitelist or keep cookies for some sites).** To leave those sites alone, Sweep lists which sites have cookies. It does not read cookie values.
 
 ## What Sweep stores
 
-Sweep saves its own settings in the browser's local extension storage on your device: the kinds of data you selected, the time range, your cookie whitelist, the on/off switches, the time each kind of data was last cleared, and the result of the last browser update check. These settings are not synced and never leave your device. Removing the extension removes them.
+Sweep saves its own settings in the browser's local extension storage on your device: the kinds of data you selected, the time range, your cookie whitelist, the names of the sites you chose to keep for each kind of data, the on/off switches, the time each kind of data was last cleared, and the result of the last browser update check. These settings are not synced and never leave your device. Removing the extension removes them.
 
 ## Network use
 

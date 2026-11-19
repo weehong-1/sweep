@@ -41,6 +41,7 @@ WHAT IT CLEARS
 Browsing history, download history, cache, form data, cookies, local storage, IndexedDB, service workers and file systems. A dot on each item shows whether it has something to clear.
 
 KEEP WHAT MATTERS
+• Keep lists: for each kind of data, choose the sites that are never cleared. Open the magnifier on an item, switch a site on, and its history, downloads, cookies or site data stay when you clean.
 • Cookie whitelist: list the sites you trust and their cookies are left alone. The list can be switched off and on without losing it.
 • Stay signed in to WhatsApp Web and Telegram Web: their site data is skipped, so you do not have to link your phone or sign in again.
 
@@ -51,7 +52,7 @@ CHECK FOR BROWSER UPDATES (OPTIONAL, OFF BY DEFAULT)
 If you switch it on, Sweep reads Google's public list of Chrome releases, at most once every 6 hours, and shows a badge when your Chrome is out of date. This is the only time Sweep uses the network, and it sends nothing about you.
 
 PRIVACY
-Sweep has no account, no analytics and no ads. Your settings stay on your computer. It reads your browsing history and download history only to decide whether to show the "has data" dot; none of it is stored or sent anywhere.
+Sweep has no account, no analytics and no ads. Your settings stay on your computer. It reads your browsing history and download history for three things: to show the "has data" dot, to list the sites you can choose to keep, and to remove entries while leaving the kept sites. None of it is sent anywhere.
 
 Available in English and Traditional Chinese, with light and dark themes.
 ```
@@ -65,6 +66,7 @@ Sweep 用一個小小的彈出視窗清除你的瀏覽資料。選時間範圍�
 瀏覽紀錄、下載紀錄、快取、表單資料、Cookie、本機儲存空間、IndexedDB、Service Worker 和檔案系統。每個項目上的圓點會告訴你那裡有沒有資料可以清。
 
 保留重要的資料
+• 保留清單：每一種資料都可以選擇永遠不清除的網站。點項目上的放大鏡，打開網站的開關，清除時它的瀏覽紀錄、下載紀錄、Cookie 或網站資料就會留下來。
 • Cookie 白名單：列出你信任的網站，它們的 Cookie 不會被清除。白名單可以暫時關閉，清單不會消失。
 • 保持 WhatsApp Web 和 Telegram Web 登入：清除時跳過它們的網站資料，不用重新連結手機或重新登入。
 
@@ -75,7 +77,7 @@ Sweep 用一個小小的彈出視窗清除你的瀏覽資料。選時間範圍�
 打開之後，Sweep 會讀取 Google 公開的 Chrome 版本清單（最多每 6 小時一次），你的 Chrome 過舊時顯示徽章。這是 Sweep 唯一會連網的時候，不會傳送任何關於你的資料。
 
 隱私
-Sweep 沒有帳號、沒有分析追蹤、沒有廣告，設定只存在你的電腦上。它讀取瀏覽紀錄和下載紀錄只是為了決定要不要顯示「有資料可清除」的圓點，不會儲存或傳送這些資料。
+Sweep 沒有帳號、沒有分析追蹤、沒有廣告，設定只存在你的電腦上。它讀取瀏覽紀錄和下載紀錄有三個用途：顯示「有資料可清除」的圓點、列出你可以選擇保留的網站、在清除時留下保留的網站。這些資料不會傳送到任何地方。
 
 提供英文和繁體中文介面，支援淺色與深色主題。
 ```
@@ -93,7 +95,7 @@ Sweep 沒有帳號、沒有分析追蹤、沒有廣告，設定只存在你的�
 **Single purpose（單一用途）— 貼上：**
 
 ```
-Sweep helps keep the browser tidy. It clears the browsing data the user selects (history, downloads, cache, cookies, form data and site storage) from a popup, can keep chosen sites signed in, can clean automatically at browser startup, and can optionally tell the user when the browser itself is out of date.
+Sweep helps keep the browser tidy. It clears the browsing data the user selects (history, downloads, cache, cookies, form data and site storage) from a popup, leaves out the sites the user chooses to keep, can clean automatically at browser startup, and can optionally tell the user when the browser itself is out of date.
 ```
 
 **Permission justification（權限用途說明）— 每個權限各貼一段：**
@@ -107,19 +109,19 @@ Used to remove the kinds of browsing data the user has selected in the popup, wh
 `storage`
 
 ```
-Used to save the user's settings on their own device: which kinds of data are selected, the time range, the cookie whitelist, the on/off switches, and the time each kind of data was last cleared. Nothing is synced or sent anywhere.
+Used to save the user's settings on their own device: which kinds of data are selected, the time range, the cookie whitelist, the sites the user chose to keep for each kind of data, the on/off switches, and the time each kind of data was last cleared. Nothing is synced or sent anywhere.
 ```
 
 `history`
 
 ```
-Used only to check whether the browsing history has entries in the selected time range, and whether pages were visited since the last clean, so the popup can show a dot on the kinds of data that have something to clear. The extension does not store, display or transmit the addresses it sees; it keeps only a yes/no result in memory while the popup is open.
+Used for three things, all on the user's own device. (1) To check whether the browsing history has entries in the selected time range, and whether pages were visited since the last clean, so the popup can show a dot on the kinds of data that have something to clear. (2) When the user opens an item's keep list, to show the names of the sites in their history and how many pages each has, so they can choose sites that should never be cleared. (3) When the user has chosen sites to keep in their history, to remove history entries one by one while leaving the entries of those sites. Site names are shown only to the user, in the popup. The extension stores only the site names the user chooses to keep, and transmits nothing.
 ```
 
 `downloads`
 
 ```
-Used only to check whether the download history has any entries in the selected time range, so the popup can show a dot on the Downloads item. The extension does not start, change, open or delete downloads, and does not store or transmit download information.
+Used for three things, all on the user's own device. (1) To check whether the download history has any entries in the selected time range, so the popup can show a dot on the Downloads item. (2) When the user opens the keep list of the Downloads item, to show the names of the sites they downloaded from, so they can choose sites whose download records should never be cleared. (3) When the user has chosen such sites, to remove download records one by one while leaving the records from those sites. The extension removes records only: it never starts, changes or opens a download, and never deletes a downloaded file. It stores only the site names the user chooses to keep, and transmits nothing.
 ```
 
 **Remote code（遠端程式碼）**：選 `No, I am not using remote code`。
@@ -144,7 +146,7 @@ Used only to check whether the download history has any entries in the selected 
 ## 可能被審核問到的地方
 
 - **單一用途**：商店要求每個擴充功能只有一個明確的用途。「檢查瀏覽器更新」和「清除瀏覽資料」不是同一件事，審核人員有可能提出疑問。如果因此被退件，把更新檢查從上架的版本拿掉是最直接的解法。
-- **`history` 權限**：這是敏感權限，審核會比較仔細。上面的用途說明已經寫明只在本機用來判斷要不要顯示圓點。
+- **`history` 權限**：這是敏感權限，審核會比較仔細。上面的用途說明已經寫明三個用途都只在本機進行：判斷要不要顯示圓點、在保留清單裡列出網站名稱、清除時留下保留的網站。
 - **在 Brave 安裝私人項目**：私人項目要靠 Google 帳號辨識測試者。Brave 沒有內建的 Google 帳號登入，能不能安裝私人項目我沒有驗證過。如果裝不了，把可見度改成 `Unlisted`（不公開，有連結才能安裝）就可以在 Brave 安裝。
 
 ## 之後要更新版本
