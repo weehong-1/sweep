@@ -1,8 +1,13 @@
 # Gets the Firefox build signed by Mozilla so it can be installed permanently.
 #
-# The add-on is submitted as "unlisted": it is not published or searchable, and
-# only you receive the signed file. The code in dist\firefox is uploaded to
-# Mozilla for automated checks.
+#   .\sign-firefox.ps1           "unlisted": not published or searchable; only
+#                                you receive the signed file.
+#   .\sign-firefox.ps1 -Listed   Submits the version to addons.mozilla.org as a
+#                                public listing, with the listing text in
+#                                store\amo-metadata.json. It goes live once
+#                                Mozilla approves it; the script does not wait.
+#
+# Either way the code in dist\firefox is uploaded to Mozilla for checks.
 #
 # You need a Mozilla account and API credentials from
 #   https://addons.mozilla.org/developers/addon/api/key/
@@ -11,15 +16,17 @@
 #
 # It uses Mozilla's own command-line tool, web-ext, which npx downloads from npm
 # the first time (npx asks before installing it).
+param([switch]$Listed)
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+$channel = if ($Listed) { 'listed' } else { 'unlisted' }
 
 if (-not (Get-Command npx -ErrorAction SilentlyContinue)) { throw 'npx was not found. Install Node.js first.' }
 & (Join-Path $root 'build.ps1')
 
 $manifest = Get-Content -Raw (Join-Path $root 'dist\firefox\manifest.json') | ConvertFrom-Json
-Write-Host "Signing Sweep $($manifest.version) ($($manifest.browser_specific_settings.gecko.id)) as an unlisted add-on."
-Write-Host 'Mozilla refuses a version number it has already signed; raise "version" in both manifest files to sign again.'
+Write-Host "Signing Sweep $($manifest.version) ($($manifest.browser_specific_settings.gecko.id)) as $(if ($Listed) { 'a public listing on addons.mozilla.org' } else { 'an unlisted add-on' })."
+Write-Host 'Mozilla refuses a version number it has already signed; raise "version" in manifest.firefox.json to sign again.'
 
 $setKey = $false
 $setSecret = $false
@@ -43,7 +50,10 @@ $env:WEB_EXT_API_KEY = $env:WEB_EXT_API_KEY -replace '\s', ''
 
 $out = Join-Path $root 'signed'
 try {
-    npx web-ext sign --source-dir (Join-Path $root 'dist\firefox') --artifacts-dir $out --channel unlisted
+    $arguments = @('web-ext', 'sign', '--source-dir', (Join-Path $root 'dist\firefox'), '--artifacts-dir', $out, '--channel', $channel)
+    # A listing is reviewed by Mozilla, which can take a while: submit and return.
+    if ($Listed) { $arguments += @('--amo-metadata', (Join-Path $root 'store\amo-metadata.json'), '--approval-timeout', '0') }
+    npx @arguments
     $code = $LASTEXITCODE
 } finally {
     # Do not leave credentials this script asked for in the session.
@@ -52,6 +62,10 @@ try {
 }
 
 if ($code -ne 0) { throw "Signing failed (web-ext exit code $code)." }
+if ($Listed) {
+    Write-Host "Submitted Sweep $($manifest.version) for review. Follow it at https://addons.mozilla.org/developers/addons"
+    return
+}
 $xpi = Get-ChildItem $out -Filter '*.xpi' | Sort-Object LastWriteTime | Select-Object -Last 1
 if (-not $xpi) { throw "Signing reported success but no .xpi was found in $out." }
 Write-Host "Signed add-on: $($xpi.FullName)"
