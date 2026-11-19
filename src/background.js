@@ -28,7 +28,13 @@ api.windows.onRemoved.addListener(async () => {
 // The popup asks the background to clean, so closing the popup mid-way does
 // not interrupt the work.
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (sender.id !== api.runtime.id || message?.type !== 'clean') return undefined;
+  if (sender.id !== api.runtime.id) return undefined;
+  // Pages ask which build the background is from (see Sweep.ensureFresh).
+  if (message?.type === 'build') {
+    sendResponse(Sweep.BUILD);
+    return undefined;
+  }
+  if (message?.type !== 'clean') return undefined;
   Sweep.loadSettings()
     .then((settings) => Sweep.clean(settings))
     .then(

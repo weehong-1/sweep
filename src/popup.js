@@ -89,6 +89,133 @@ function markTile(tile) {
 let hasData = {};
 let markerRun = 0;
 
+// ---- Keep lists: what is in an item, and what to never clear ----
+// The magnifier on a tile opens this view in place of the main one. The left
+// list offers sites (see Sweep.foundSites), the right list is what is kept.
+const detail = {
+  root: document.getElementById('detail'),
+  back: document.getElementById('detailBack'),
+  title: document.getElementById('detailTitle'),
+  note: document.getElementById('detailNote'),
+  picker: document.getElementById('detailPicker'),
+  found: document.getElementById('foundList'),
+  kept: document.getElementById('keptList'),
+  add: document.getElementById('keepAdd'),
+  remove: document.getElementById('keepRemove'),
+  form: document.getElementById('keepForm'),
+  input: document.getElementById('keepInput'),
+  status: document.getElementById('detailStatus'),
+};
+
+let keep = {}; // { typeId: [host, ...] }
+let detailType = null;
+let foundSites = [];
+
+function setDetailStatus(text, isError = false) {
+  detail.status.textContent = text;
+  detail.status.classList.toggle('error', isError);
+}
+
+function fillList(select, rows, emptyText) {
+  select.textContent = '';
+  if (!rows.length) {
+    const none = el('option', '', emptyText);
+    none.disabled = true;
+    select.append(none);
+  }
+  for (const [value, text] of rows) {
+    const option = el('option', '', text);
+    option.value = value;
+    select.append(option);
+  }
+}
+
+function renderDetailLists() {
+  const kept = keep[detailType.id] || [];
+  fillList(detail.found, foundSites.filter((site) => !kept.includes(site.host)).map((site) => [site.host, `${site.host} (${site.count})`]), t('keepNoneFound'));
+  fillList(detail.kept, kept.map((host) => [host, host]), t('keepNoneKept'));
+}
+
+function keepNoteKey(typeId) {
+  if (!Sweep.canKeep(typeId)) return 'keepNoteUnsupported';
+  return { history: 'keepNoteHistory', downloads: 'keepNoteDownloads', cookies: 'keepNoteCookies' }[typeId] || 'keepNoteSites';
+}
+
+async function openDetail(type) {
+  detailType = type;
+  foundSites = [];
+  document.body.classList.add('detail-open');
+  detail.root.hidden = false;
+  detail.title.textContent = `${t('type_' + type.id)} · ${t('keepKept')}`;
+  detail.note.textContent = t(keepNoteKey(type.id));
+  const supported = Sweep.canKeep(type.id);
+  detail.picker.hidden = !supported;
+  detail.form.hidden = !supported;
+  detail.root.dataset.loaded = supported ? '0' : '1';
+  setDetailStatus('');
+  if (!supported) return;
+
+  renderDetailLists();
+  try {
+    const sites = await Sweep.foundSites(type.id);
+    if (detailType !== type) return; // another item was opened meanwhile
+    foundSites = sites;
+  } catch {
+    // No permission or no such API: the picker still works with typed sites.
+  }
+  renderDetailLists();
+  detail.root.dataset.loaded = '1';
+}
+
+function closeDetail() {
+  detailType = null;
+  document.body.classList.remove('detail-open');
+  detail.root.hidden = true;
+  renderTypes(); // the magnifiers show which items have a keep list
+  refreshMarkers();
+}
+
+// Replaces the keep list of the open item and saves it.
+async function setKept(hosts) {
+  const type = detailType;
+  keep = { ...keep, [type.id]: hosts };
+  renderDetailLists();
+  // Firefox can only spare cookies when it may list them, and only lets an
+  // extension ask for that while a click is being handled, so ask first.
+  let granted = true;
+  if (Sweep.IS_FIREFOX && type.id === 'cookies' && hosts.length) {
+    granted = await api.permissions.request(Sweep.COOKIE_PERMISSIONS);
+  }
+  await Sweep.saveSettings({ keep });
+  setDetailStatus(granted ? '' : t('errCookiePermission'), !granted);
+}
+
+const selectedIn = (select) => [...select.selectedOptions].map((option) => option.value).filter(Boolean);
+
+detail.back.addEventListener('click', closeDetail);
+detail.add.addEventListener('click', () => {
+  const adding = selectedIn(detail.found);
+  if (adding.length) setKept([...new Set([...(keep[detailType.id] || []), ...adding])]);
+});
+detail.remove.addEventListener('click', () => {
+  const removing = selectedIn(detail.kept);
+  if (removing.length) setKept((keep[detailType.id] || []).filter((host) => !removing.includes(host)));
+});
+// Double-click moves one site across, as in most two-list pickers.
+detail.found.addEventListener('dblclick', () => detail.add.click());
+detail.kept.addEventListener('dblclick', () => detail.remove.click());
+detail.form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const { domains, invalid } = Sweep.parseWhitelist(detail.input.value);
+  if (invalid.length) {
+    setDetailStatus(`${t('errInvalid')} ${invalid.join(', ')}`, true);
+    return;
+  }
+  if (!domains.length) return;
+  detail.input.value = '';
+  setKept([...new Set([...(keep[detailType.id] || []), ...domains])]);
+});
+
 function selectedCount() {
   return TYPES.filter((type) => state.types[type.id] && !Sweep.isBlocked(type, state.range)).length;
 }
@@ -145,8 +272,23 @@ function renderTypes() {
     text.append(el('span', 'name', t('type_' + type.id)));
     if (blocked) text.append(el('small', '', t('allTimeOnly')));
 
-    // Shown when this kind of data has something to clear.
-    tile.append(box, badge, text, el('span', 'dot'));
+    // The dot on the icon shows when this kind of data has something to clear.
+    badge.append(el('span', 'dot'));
+
+    // The magnifier opens the list of what is here and what to always keep.
+    const look = el('button', (keep[type.id] || []).length ? 'look on' : 'look');
+    look.type = 'button';
+    look.dataset.look = type.id;
+    look.title = t('keepLook');
+    look.setAttribute('aria-label', `${t('type_' + type.id)}: ${t('keepLook')}`);
+    look.append(icon('search'));
+    look.addEventListener('click', (event) => {
+      event.preventDefault(); // the tile is a label; do not toggle its checkbox
+      event.stopPropagation();
+      openDetail(type);
+    });
+
+    tile.append(box, badge, text, look);
     markTile(tile);
     els.types.append(tile);
   }
@@ -302,6 +444,8 @@ for (const node of document.querySelectorAll('[data-i18n]')) {
 document.documentElement.lang = api.i18n.getUILanguage();
 els.settings.title = t('btnSettings');
 els.settings.setAttribute('aria-label', t('btnSettings'));
+detail.back.title = t('keepBack');
+detail.back.setAttribute('aria-label', t('keepBack'));
 
 els.settings.addEventListener('click', () => api.runtime.openOptionsPage());
 els.run.addEventListener('click', run);
@@ -325,11 +469,21 @@ api.storage.onChanged.addListener((changes, area) => {
   }
   if (changed) renderQuick();
   if (updateSwitched) refreshUpdate(false);
+  // Keep lists changed in another popup or tab.
+  if (changes.keep && JSON.stringify(changes.keep.newValue || {}) !== JSON.stringify(keep)) {
+    keep = changes.keep.newValue || {};
+    if (detailType) renderDetailLists(); else renderTypes();
+    refreshMarkers();
+  }
 });
+
+// If the background script is from an older build, this reloads the extension.
+Sweep.ensureFresh();
 
 Sweep.loadSettings().then(
   (settings) => {
     state = { range: settings.range, types: settings.types };
+    keep = settings.keep;
     extras = { whitelist: settings.whitelist, useWhitelist: settings.useWhitelist, keepWhatsApp: settings.keepWhatsApp, keepTelegram: settings.keepTelegram, autoClean: settings.autoClean, updateCheck: settings.updateCheck };
     renderRange();
     renderQuick();

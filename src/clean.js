@@ -8,6 +8,34 @@
   const api = globalThis.browser ?? globalThis.chrome;
   const IS_FIREFOX = typeof api.runtime.getBrowserInfo === 'function';
 
+  // A fingerprint of the source, filled in by build.ps1. When the files of an
+  // unpacked extension change, the browser keeps running the old background
+  // script while pages load the new files; comparing the two shows a page that
+  // it is ahead of the background.
+  const BUILD = '__BUILD__';
+
+  // Called by pages as they open. If the background script is from another
+  // build, reloads the whole extension (once per build, so it cannot loop) and
+  // resolves to true; the page is closed by the reload.
+  async function ensureFresh() {
+    let running;
+    try {
+      running = await api.runtime.sendMessage({ type: 'build' });
+    } catch {
+      // An old background script does not know the question.
+    }
+    if (running === BUILD) return false;
+    try {
+      const { reloadedFor } = await api.storage.local.get('reloadedFor');
+      if (reloadedFor === BUILD) return false;
+      await api.storage.local.set({ reloadedFor: BUILD });
+      api.runtime.reload();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // `on` is the first-run default.
   // `chromiumOnly`: Firefox has no such data type and silently ignores it.
   // `firefoxOnly`: Chromium ignores `passwords` since Chrome 144.
@@ -66,14 +94,21 @@
   }
 
   async function loadSettings() {
-    const stored = await api.storage.local.get(['range', 'types', 'autoClean', 'updateCheck', 'whitelist', 'useWhitelist', ...Object.keys(KEEP_SITES)]);
+    const stored = await api.storage.local.get(['range', 'types', 'autoClean', 'updateCheck', 'whitelist', 'useWhitelist', 'keep', ...Object.keys(KEEP_SITES)]);
     const types = {};
     for (const type of TYPES) {
       const saved = stored.types?.[type.id];
       types[type.id] = typeof saved === 'boolean' ? saved : type.on;
     }
     const whitelist = Array.isArray(stored.whitelist) ? stored.whitelist : [];
+    // Per-item keep lists: { typeId: [host, ...] }.
+    const keep = {};
+    for (const type of TYPES) {
+      const list = stored.keep?.[type.id];
+      keep[type.id] = Array.isArray(list) ? list.filter((host) => typeof host === 'string') : [];
+    }
     return {
+      keep,
       range: stored.range in RANGES ? stored.range : 'all',
       types,
       autoClean: stored.autoClean === true,
@@ -151,30 +186,98 @@
     return [...hosts];
   }
 
-  function chromiumJobs(since, data, whitelist) {
-    const kept = {};
-    const rest = {};
-    for (const id of Object.keys(data)) {
-      (whitelist.length && SITE_DATA.has(id) ? kept : rest)[id] = true;
+  // ---- Per-item keep lists ----
+  // Besides the cookie whitelist, each kind of data can have its own list of
+  // sites that are never cleared (`settings.keep[typeId]`, host names; a host
+  // also covers its subdomains). What the browser allows differs:
+  //   history, downloads            Sweep removes the entries one by one and skips kept sites
+  //   Chromium cache and site data  the browser leaves the listed origins out of the removal
+  //   Firefox cookies               like the whitelist: only the other hosts are cleared
+  // Form data and passwords cannot be kept per site in any browser, and in
+  // Firefox neither can the cache or site storage.
+  const KEEPABLE = new Set(IS_FIREFOX
+    ? ['history', 'downloads', 'cookies']
+    : ['history', 'downloads', 'cache', 'cookies', 'localStorage', 'indexedDB', 'serviceWorkers', 'fileSystems']);
+  const canKeep = (typeId) => KEEPABLE.has(typeId);
+  const keepFor = (settings, typeId) => (canKeep(typeId) ? settings.keep?.[typeId] || [] : []);
+
+  function hostOf(url) {
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return '';
     }
+  }
+
+  // Runs `task` over `items`, a few at a time.
+  async function inBatches(items, task, size = 40) {
+    for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(task));
+  }
+
+  // Removes every page visited since `since` whose site is not kept. deleteUrl
+  // forgets the whole address, including visits from before `since`.
+  async function removeHistoryExcept(since, kept) {
+    const pages = await api.history.search({ text: '', startTime: since, maxResults: 100000 });
+    await inBatches(pages.filter((page) => !isWhitelisted(hostOf(page.url), kept)), (page) => api.history.deleteUrl({ url: page.url }));
+  }
+
+  // Removes the record (not the file) of every download since `since` whose site is not kept.
+  async function removeDownloadsExcept(since, kept) {
+    const query = since ? { startedAfter: new Date(since).toISOString(), limit: 0 } : { limit: 0 };
+    const items = await api.downloads.search(query);
+    await inBatches(items.filter((item) => !isWhitelisted(hostOf(item.finalUrl || item.url), kept)), (item) => api.downloads.erase({ id: item.id }));
+  }
+
+  // History and downloads that have a keep list are taken out of `data` and
+  // handled here; without one the browser's own removal is used, which is faster.
+  function itemJobs(since, data, settings) {
     const jobs = [];
-    if (Object.keys(kept).length) {
-      const excludeOrigins = whitelist.flatMap((host) => [`https://${host}`, `http://${host}`]);
-      jobs.push(() => api.browsingData.remove({ since, excludeOrigins }, kept));
+    const history = keepFor(settings, 'history');
+    if (data.history && history.length) {
+      delete data.history;
+      jobs.push(() => removeHistoryExcept(since, history));
     }
-    if (Object.keys(rest).length) {
-      jobs.push(() => api.browsingData.remove({ since }, rest));
+    const downloads = keepFor(settings, 'downloads');
+    if (data.downloads && downloads.length) {
+      delete data.downloads;
+      jobs.push(() => removeDownloadsExcept(since, downloads));
     }
     return jobs;
   }
 
-  function firefoxJobs(since, data, whitelist) {
+  function chromiumJobs(since, data, settings) {
     const rest = { ...data };
-    const jobs = [];
-    if (whitelist.length && rest.cookies) {
+    const jobs = itemJobs(since, rest, settings);
+    const whitelist = protectedHosts(settings);
+
+    // Kinds of data that keep the same sites share one removal.
+    const groups = new Map();
+    for (const id of Object.keys(rest)) {
+      // cacheStorage has no tile of its own: it follows the whitelist like the
+      // rest of the site data, and the keep list of the Cache tile it rides with.
+      const own = keepFor(settings, id === 'cacheStorage' ? 'cache' : id);
+      const hosts = [...new Set([...(SITE_DATA.has(id) ? whitelist : []), ...own])].sort();
+      const key = hosts.join(' ');
+      if (!groups.has(key)) groups.set(key, { hosts, types: {} });
+      groups.get(key).types[id] = true;
+    }
+    for (const { hosts, types } of groups.values()) {
+      const options = hosts.length
+        ? { since, excludeOrigins: hosts.flatMap((host) => [`https://${host}`, `http://${host}`]) }
+        : { since };
+      jobs.push(() => api.browsingData.remove(options, types));
+    }
+    return jobs;
+  }
+
+  function firefoxJobs(since, data, settings) {
+    const rest = { ...data };
+    const jobs = itemJobs(since, rest, settings);
+    const cookieKeep = [...new Set([...protectedHosts(settings), ...keepFor(settings, 'cookies')])];
+    if (cookieKeep.length && rest.cookies) {
       delete rest.cookies;
       jobs.push(async () => {
-        const hostnames = await firefoxCookieHostsExcept(whitelist);
+        const hostnames = await firefoxCookieHostsExcept(cookieKeep);
         if (hostnames.length) {
           await api.browsingData.remove({ since, hostnames }, { cookies: true });
         }
@@ -186,6 +289,26 @@
     return jobs;
   }
 
+  // The sites the keep-list picker offers for a kind of data, most frequent
+  // first: [{ host, count }]. Downloads are listed from the download history.
+  // Everything else is listed from the browsing history, because the browser
+  // lets an extension list neither the cache nor cookies nor site storage.
+  async function foundSites(typeId) {
+    const counts = new Map();
+    const add = (url) => {
+      const host = /^https?:/.test(url || '') ? hostOf(url) : '';
+      if (host.includes('.')) counts.set(host, (counts.get(host) || 0) + 1);
+    };
+    if (typeId === 'downloads') {
+      for (const item of await api.downloads.search({ limit: 0 })) add(item.finalUrl || item.url);
+    } else {
+      for (const page of await api.history.search({ text: '', startTime: 0, maxResults: 5000 })) add(page.url);
+    }
+    return [...counts]
+      .map(([host, count]) => ({ host, count }))
+      .sort((a, b) => b.count - a.count || a.host.localeCompare(b.host));
+  }
+
   // ---- Is there anything to clear? ----
   // The browser only lets an extension look at two kinds of data: browsing
   // history and download history. For everything else (cache, cookies, form
@@ -195,22 +318,25 @@
   //   cleanedAt  when it was last cleared in full
   //   pending    known to hold data even though the history no longer shows why
 
-  // True when a page other than Sweep's own was visited after `time`.
-  // When that cannot be told, assume yes.
-  async function visitedSince(time) {
+  // True when a page other than Sweep's own, and not on a kept site, was
+  // visited after `time`. When that cannot be told, assume yes.
+  async function visitedSince(time, kept = []) {
     try {
       const own = api.runtime.getURL('');
-      const pages = await api.history.search({ text: '', startTime: time, maxResults: 25 });
-      return pages.some((page) => !page.url.startsWith(own));
+      // With kept sites the newest pages may all be kept ones, so look further.
+      const pages = await api.history.search({ text: '', startTime: time, maxResults: kept.length ? 2000 : 25 });
+      return pages.some((page) => !page.url.startsWith(own) && !isWhitelisted(hostOf(page.url), kept));
     } catch {
       return true;
     }
   }
 
-  async function downloadedSince(time) {
+  async function downloadedSince(time, kept = []) {
     try {
-      const query = time ? { startedAfter: new Date(time).toISOString(), limit: 1 } : { limit: 1 };
-      return (await api.downloads.search(query)).length > 0;
+      const query = { limit: kept.length ? 0 : 1 };
+      if (time) query.startedAfter = new Date(time).toISOString();
+      const items = await api.downloads.search(query);
+      return items.some((item) => !isWhitelisted(hostOf(item.finalUrl || item.url), kept));
     } catch {
       return true;
     }
@@ -220,6 +346,7 @@
   async function needsCleaning(range) {
     const since = range === 'all' ? 0 : Date.now() - RANGES[range];
     const { cleanedAt = {}, pending = {} } = await api.storage.local.get(['cleanedAt', 'pending']);
+    const settings = await loadSettings();
     const asked = new Map();
     const visited = (time) => {
       if (!asked.has(time)) asked.set(time, visitedSince(time));
@@ -229,9 +356,10 @@
     const result = {};
     await Promise.all(TYPES.map(async ({ id }) => {
       if (id === 'history') {
-        result[id] = await visited(since);
+        // Kept sites stay behind after a clean and are not "something to clear".
+        result[id] = await visitedSince(since, keepFor(settings, 'history'));
       } else if (id === 'downloads') {
-        result[id] = await downloadedSince(since);
+        result[id] = await downloadedSince(since, keepFor(settings, 'downloads'));
       } else if (pending[id] === true || !cleanedAt[id]) {
         // Holds data of unknown age: certainly something for "all time", and
         // for a shorter range only if there was browsing inside it.
@@ -268,7 +396,7 @@
       await api.storage.local.set({ pending });
     }
 
-    const jobs = (IS_FIREFOX ? firefoxJobs : chromiumJobs)(since, data, protectedHosts(settings));
+    const jobs = (IS_FIREFOX ? firefoxJobs : chromiumJobs)(since, data, settings);
     const results = await Promise.allSettled(jobs.map((job) => job()));
     const errors = results
       .filter((result) => result.status === 'rejected')
@@ -292,6 +420,8 @@
   globalThis.Sweep = {
     api,
     IS_FIREFOX,
+    BUILD,
+    ensureFresh,
     TYPES,
     RANGES,
     COOKIE_PERMISSIONS,
@@ -302,6 +432,8 @@
     loadSettings,
     saveSettings,
     parseWhitelist,
+    canKeep,
+    foundSites,
     needsCleaning,
     clean,
   };

@@ -50,5 +50,19 @@
   "updateOpen": { "message": "Update" },
   "updateHowFirefox": { "message": "Open Menu > Help > About Firefox to update." },
   "hasData": { "message": "Has data to clear" },
-  "noData": { "message": "Nothing to clear" }
+  "noData": { "message": "Nothing to clear" },
+  "keepLook": { "message": "See what is here and choose what to keep" },
+  "keepBack": { "message": "Back" },
+  "keepFound": { "message": "Found" },
+  "keepKept": { "message": "Always keep" },
+  "keepAdd": { "message": "Add ›" },
+  "keepRemove": { "message": "‹ Remove" },
+  "keepAddTyped": { "message": "Add" },
+  "keepNoneFound": { "message": "Nothing found" },
+  "keepNoneKept": { "message": "Nothing kept yet" },
+  "keepNoteHistory": { "message": "Pages from the sites on the right stay in your history when you clean. The left list shows the sites in your history and how many pages each has. You can also type a site." },
+  "keepNoteDownloads": { "message": "Download records from the sites on the right are kept when you clean. The left list shows the sites you downloaded from. Sweep never deletes the downloaded files themselves." },
+  "keepNoteCookies": { "message": "Cookies of the sites on the right, and of their subdomains, are kept when you clean. The browser does not let extensions list cookies, so the left list shows sites you visited. You can also type a site." },
+  "keepNoteSites": { "message": "This data is kept for the sites on the right when you clean. The browser does not let extensions list it, so the left list shows sites you visited. Add the exact site name you use, such as app.example.com; you can also type one." },
+  "keepNoteUnsupported": { "message": "The browser does not let extensions list this kind of data or keep it site by site, so it is always cleared in full." }
 }

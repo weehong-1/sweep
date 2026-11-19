@@ -95,6 +95,9 @@ api.storage.onChanged.addListener((changes, area) => {
   }
 });
 
+// If the background script is from an older build, this reloads the extension.
+Sweep.ensureFresh();
+
 Sweep.loadSettings().then(
   (settings) => {
     for (const key of SWITCH_KEYS) document.getElementById(key).checked = settings[key];

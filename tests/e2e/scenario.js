@@ -15,7 +15,8 @@ const POPUP_VIEW = `(() => {
     const r = document.querySelector(selector).getBoundingClientRect();
     return [Math.round(r.left - body.left), Math.round(body.right - r.right)];
   };
-  const texts = [...document.querySelectorAll('h1, h2, .segmented span, .tile .name, .tile small, #runLabel')].map((e) => e.textContent.trim());
+  // The keep-list view is hidden until a magnifier is clicked; its title is filled in then.
+  const texts = [...document.querySelectorAll('h1, h2, .segmented span, .tile .name, .tile small, #runLabel')].filter((e) => !e.closest('#detail')).map((e) => e.textContent.trim());
   return {
     tiles: [...document.querySelectorAll('.tile')].map((t) => ({
       type: t.dataset.type,
@@ -39,6 +40,7 @@ const POPUP_VIEW = `(() => {
     })(),
     untranslated: [...texts, ...[...document.querySelectorAll('.quick button')].map((b) => b.title)].filter((x) => !x || /^(type_|[a-z]+[A-Z][A-Za-z]*( \(\d+\))?$)/.test(x)),
     clipped: [...document.querySelectorAll('.segmented span')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent),
+    wrapped: [...document.querySelectorAll('.tile:not(.off) .name')].filter((e) => e.getBoundingClientRect().height > 22).map((e) => e.textContent),
     insets: [inset('.top'), inset('.segmented'), inset('.quick'), inset('.tiles'), inset('#run')],
     width: Math.round(body.width),
     height: Math.round(body.height),
@@ -143,7 +145,8 @@ async function scenario(d, check) {
   );
   check('popup: every label is translated (no raw message keys)', view.untranslated.length === 0, view.untranslated.join(', '));
   check('popup: no time-range label is cut off', view.clipped.length === 0, view.clipped.join(', '));
-  check('popup: 340px wide with equal 14px side padding on every row', view.width === 340 && view.insets.every(([l, r]) => l === 14 && r === 14), JSON.stringify(view.insets));
+  check('popup: 380px wide with equal 14px side padding on every row', view.width === 380 && view.insets.every(([l, r]) => l === 14 && r === 14), JSON.stringify(view.insets));
+  check('popup: every item name fits on one line beside its magnifier', view.wrapped.length === 0, view.wrapped.join(', '));
   check('popup: fits a browser popup (at most 600px tall)', view.height <= 600, `${view.height}px`);
   check('popup: badge shows how many items are selected', view.count === String(view.tiles.filter((t) => t.checked).length), view.count);
   check('popup: whitelist, WhatsApp, Telegram, auto-clean and update buttons form one row of five equal buttons under the time range', Object.keys(view.quick).join() === 'whitelist,keepWhatsApp,keepTelegram,autoClean,updateCheck' && view.quickFits, JSON.stringify(view.quick));
@@ -218,6 +221,116 @@ async function scenario(d, check) {
     state = await whitelistState();
     check('whitelist on again: popup button lights with its count, settings switch follows', view.quick.whitelist.on && view.quick.whitelist.count === '1' && state.checked === true && state.stored === true, JSON.stringify(state));
     await settingsTab.close();
+  }
+
+  // ---------- 3c. Per-item keep lists (the magnifier on each tile) ----------
+  {
+    const setStored = async (values) => {
+      const page = await d.openExt('options.html');
+      await page.eval(`${API}.storage.local.set(${JSON.stringify(values)})`);
+      await page.close();
+    };
+    const historySites = async () => {
+      const page = await d.openExt('popup.html');
+      const sites = await page.eval(`Sweep.foundSites('history').then((list) => list.map((site) => site.host).sort())`);
+      await page.close();
+      return sites;
+    };
+
+    await seed(d, SITES);
+    const popup = await d.openExt('popup.html');
+    const picker = () => popup.eval(`(() => ({
+      open: document.body.classList.contains('detail-open'),
+      loaded: document.getElementById('detail').dataset.loaded,
+      title: document.getElementById('detailTitle').textContent,
+      note: document.getElementById('detailNote').textContent,
+      pickerShown: !document.getElementById('detailPicker').hidden,
+      found: [...document.querySelectorAll('#foundList option:not(:disabled)')].map((o) => o.value),
+      kept: [...document.querySelectorAll('#keptList option:not(:disabled)')].map((o) => o.value),
+      status: document.getElementById('detailStatus').textContent,
+      width: Math.round(document.body.getBoundingClientRect().width),
+      height: Math.round(document.body.getBoundingClientRect().height),
+    }))()`);
+    const openItem = async (type) => {
+      await popup.click(`.tile[data-type="${type}"] .look`);
+      let state;
+      for (let i = 0; i < 25; i++) {
+        state = await picker();
+        if (state.open && state.loaded === '1') break;
+        await sleep(150);
+      }
+      return state;
+    };
+    const stored = () => popup.eval(`${API}.storage.local.get('keep').then((s) => s.keep || {})`);
+
+    // History: what is found, and moving a site across with the Add button.
+    let item = await openItem('history');
+    check('keep list: the magnifier opens a two-list picker that fits a browser popup', item.open && item.pickerShown && item.width <= 800 && item.height <= 600, `${item.width}x${item.height}`);
+    check('keep list: the left list shows the sites in the history', SITES.every((host) => item.found.includes(host)), item.found.join(','));
+    check('keep list: the note is translated', item.note.length > 20 && !/^keep[A-Z]/.test(item.note) && !/keep[A-Z]/.test(item.title), item.title);
+    await popup.eval(`(() => { for (const o of document.getElementById('foundList').options) o.selected = o.value === 'tracker.test'; })()`);
+    await popup.click('#keepAdd');
+    await sleep(500);
+    item = await picker();
+    check('keep list: Add moves the selected site to "Always keep" and stores it', item.kept.join() === 'tracker.test' && !item.found.includes('tracker.test') && ((await stored()).history || []).join() === 'tracker.test', JSON.stringify(item.kept));
+    await popup.click('#detailBack');
+    await sleep(300);
+    check('keep list: back returns to the main view and lights the magnifier of that item',
+      await popup.eval(`!document.body.classList.contains('detail-open') && document.querySelector('.tile[data-type="history"] .look').classList.contains('on') && !document.querySelector('.tile[data-type="cache"] .look').classList.contains('on')`));
+
+    // Cookies: typing a site instead of picking one.
+    await openItem('cookies');
+    await popup.eval(`(() => { document.getElementById('keepInput').value = 'https://Tracker.test/some/page'; })()`);
+    await popup.click('#keepForm button');
+    await sleep(700);
+    item = await picker();
+    check('keep list: a typed address is cleaned up and added', item.kept.join() === 'tracker.test' && ((await stored()).cookies || []).join() === 'tracker.test' && item.status === '', `${item.kept.join()} ${item.status}`);
+    await popup.eval(`(() => { document.getElementById('keepInput').value = 'not a site'; })()`);
+    await popup.click('#keepForm button');
+    await sleep(300);
+    check('keep list: something that is not a site is refused', (await picker()).kept.join() === 'tracker.test' && (await picker()).status !== '');
+    await popup.click('#detailBack');
+
+    // Form data cannot be kept site by site: the picker says so instead.
+    item = await openItem('formData');
+    check('keep list: items that cannot be kept per site explain why instead of showing the picker', item.open && !item.pickerShown && item.note.length > 20, item.note);
+    await popup.click('#detailBack');
+    await popup.close();
+
+    // Cleaning everything now spares the kept site's history and cookies.
+    ({ view, result } = await usePopup(d));
+    cookies = await d.cookies();
+    const left = await historySites();
+    check('keep list: cleaning finishes', Boolean(result?.done), result?.status);
+    check('keep list: the kept site stays in the history, the other sites are removed', left.join() === 'tracker.test', left.join(','));
+    check('keep list: the kept site keeps its cookies', cookiesFor(cookies, 'tracker.test').length === 2, cookies.join(' '));
+    ({ view } = await usePopup(d, { run: false }));
+    check('keep list: history that is only kept sites is not marked as something to clear', !marked(view).split(',').includes('history'), marked(view));
+
+    // Each item has its own list: keep local storage for a site, but not its IndexedDB.
+    if (!d.isFirefox) {
+      await setStored({ keep: { localStorage: ['tracker.test'] } });
+      await seed(d, ['tracker.test']);
+      ({ result } = await usePopup(d));
+      const own = await storageOf(d, 'tracker.test');
+      check('keep list: lists are per item (local storage kept, IndexedDB of the same site cleared)', Boolean(result?.done) && own.ls === 'v' && own.idb.length === 0, JSON.stringify(own));
+    }
+
+    // Removing a site from the list, with the Remove button.
+    await setStored({ keep: { history: ['tracker.test', 'keep.test'] } });
+    const again = await d.openExt('popup.html');
+    await again.click('.tile[data-type="history"] .look');
+    await sleep(900);
+    await again.eval(`(() => { for (const o of document.getElementById('keptList').options) o.selected = o.value === 'tracker.test'; })()`);
+    await again.click('#keepRemove');
+    await sleep(500);
+    const afterRemove = await again.eval(`${API}.storage.local.get('keep').then((s) => (s.keep.history || []).join())`);
+    await again.close();
+    check('keep list: Remove takes a site off the list', afterRemove === 'keep.test', afterRemove);
+
+    // Leave no keep lists or leftovers behind for the steps that follow.
+    await setStored({ keep: {} });
+    await usePopup(d);
   }
 
   // ---------- 4. Firefox: whitelist without the cookie permission ----------

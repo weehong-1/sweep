@@ -50,5 +50,19 @@
   "updateOpen": { "message": "前往更新" },
   "updateHowFirefox": { "message": "請開啟選單 > 說明 > 關於 Firefox 進行更新。" },
   "hasData": { "message": "有資料可清除" },
-  "noData": { "message": "沒有需要清除的資料" }
+  "noData": { "message": "沒有需要清除的資料" },
+  "keepLook": { "message": "查看內容並選擇要保留的網站" },
+  "keepBack": { "message": "返回" },
+  "keepFound": { "message": "找到的網站" },
+  "keepKept": { "message": "永遠保留" },
+  "keepAdd": { "message": "加入 ›" },
+  "keepRemove": { "message": "‹ 移除" },
+  "keepAddTyped": { "message": "加入" },
+  "keepNoneFound": { "message": "沒有找到網站" },
+  "keepNoneKept": { "message": "尚未保留任何網站" },
+  "keepNoteHistory": { "message": "清除時，右邊清單裡的網站的瀏覽紀錄會保留下來。左邊是你瀏覽紀錄裡的網站和各自的頁數，也可以自己輸入網站。" },
+  "keepNoteDownloads": { "message": "清除時，來自右邊清單網站的下載紀錄會保留下來。左邊是你下載過檔案的網站。Sweep 不會刪除下載的檔案本身。" },
+  "keepNoteCookies": { "message": "清除時，右邊清單裡的網站（包含子網域）的 Cookie 會保留下來。瀏覽器不讓擴充功能列出 Cookie，所以左邊顯示的是你造訪過的網站，也可以自己輸入網站。" },
+  "keepNoteSites": { "message": "清除時，右邊清單裡的網站的這項資料會保留下來。瀏覽器不讓擴充功能列出這項資料，所以左邊顯示的是你造訪過的網站。請加入你實際使用的確切網站名稱，例如 app.example.com，也可以自己輸入。" },
+  "keepNoteUnsupported": { "message": "瀏覽器不讓擴充功能列出這項資料，也無法按網站保留，所以一律全部清除。" }
 }
