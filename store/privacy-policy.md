@@ -37,4 +37,4 @@ If this policy changes, the new version will be published at the same address.
 
 ## Contact
 
-Questions about this policy can be sent to the developer through the contact details on the extension's Chrome Web Store page.
+Questions about this policy can be sent to the developer through <https://github.com/weehong-1/sweep/issues>, or through the contact details on the extension's store page.
