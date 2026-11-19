@@ -25,6 +25,7 @@
     <symbol id="i-chat" viewBox="0 0 24 24"><path d="M12 4a8 8 0 0 0-6.900 12L4 20l4.100-1.100A8 8 0 1 0 12 4Z"/><path d="M9 10.500h6M9 13.500h4"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 6 8.5 12l6 6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
     <symbol id="i-spinner" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" stroke-width="2.6" opacity=".3"/><path d="M20.5 12A8.5 8.5 0 0 0 12 3.5" stroke-width="2.6"/></symbol>
     <symbol id="i-update" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 16V8.5M8.5 11.5 12 8l3.5 3.5"/></symbol>
     <symbol id="i-plane" viewBox="0 0 24 24"><path d="M20.500 4 3.500 10.500l5.500 2.500 2.500 5.500L20.500 4ZM9 13l4.500-3.500"/></symbol>
@@ -63,7 +64,8 @@
   <p id="status" role="status"></p>
 
   <!-- Opened by the magnifier on a tile: what is in that kind of data, and the
-       sites to never clear. While it shows, the rest of the popup is hidden. -->
+       sites to never clear. While it shows, the rest of the popup is hidden.
+       Tiles whose data the browser can only clear all at once have no magnifier. -->
   <section id="detail" class="detail" hidden>
     <header class="detail-top">
       <button id="detailBack" type="button" class="icon-btn">
@@ -72,24 +74,17 @@
       <h1 id="detailTitle"></h1>
     </header>
     <p id="detailNote" class="detail-note"></p>
+    <!-- One list of sites, a switch on each: on means "never clear this site".
+         The box searches the list and adds a site that is not in it. -->
     <div id="detailPicker" class="picker">
-      <div class="col">
-        <h2 id="foundHeading" data-i18n="keepFound"></h2>
-        <select id="foundList" multiple size="12" aria-labelledby="foundHeading"></select>
-      </div>
-      <div class="mid">
-        <button id="keepAdd" type="button" class="btn" data-i18n="keepAdd"></button>
-        <button id="keepRemove" type="button" class="btn" data-i18n="keepRemove"></button>
-      </div>
-      <div class="col">
-        <h2 id="keptHeading" data-i18n="keepKept"></h2>
-        <select id="keptList" multiple size="12" aria-labelledby="keptHeading"></select>
-      </div>
+      <form id="keepForm" class="keep-form">
+        <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-search"/></svg>
+        <input id="keepInput" type="text" spellcheck="false" autocomplete="off">
+        <button type="submit" class="btn" data-i18n="keepAddTyped"></button>
+      </form>
+      <div id="keepFilter" class="segmented two" role="radiogroup"></div>
+      <ul id="siteList" class="sites"></ul>
     </div>
-    <form id="keepForm" class="keep-form">
-      <input id="keepInput" type="text" spellcheck="false" autocomplete="off" placeholder="example.com">
-      <button type="submit" class="btn" data-i18n="keepAddTyped"></button>
-    </form>
     <p id="detailStatus" class="detail-status" role="status"></p>
   </section>
 

@@ -90,80 +90,137 @@ let hasData = {};
 let markerRun = 0;
 
 // ---- Keep lists: what is in an item, and what to never clear ----
-// The magnifier on a tile opens this view in place of the main one. The left
-// list offers sites (see Sweep.foundSites), the right list is what is kept.
+// The magnifier on a tile opens this view in place of the main one. It is one
+// list of sites (see Sweep.foundSites) with a switch on each: on means the
+// site is never cleared for this item. The box above the list searches it and
+// adds a site that is not in it.
 const detail = {
   root: document.getElementById('detail'),
   back: document.getElementById('detailBack'),
   title: document.getElementById('detailTitle'),
   note: document.getElementById('detailNote'),
   picker: document.getElementById('detailPicker'),
-  found: document.getElementById('foundList'),
-  kept: document.getElementById('keptList'),
-  add: document.getElementById('keepAdd'),
-  remove: document.getElementById('keepRemove'),
   form: document.getElementById('keepForm'),
   input: document.getElementById('keepInput'),
+  filter: document.getElementById('keepFilter'),
+  list: document.getElementById('siteList'),
   status: document.getElementById('detailStatus'),
 };
 
 let keep = {}; // { typeId: [host, ...] }
 let detailType = null;
-let foundSites = [];
+let foundSites = []; // [{ host, count }], the fullest first
+// The hosts in the order they are listed. It is set when the view opens and
+// then left alone, so a row does not jump away when its switch is flipped.
+let siteOrder = [];
+let keepFilter = 'all'; // or 'kept'
+
+const keptHosts = () => keep[detailType.id] || [];
 
 function setDetailStatus(text, isError = false) {
   detail.status.textContent = text;
   detail.status.classList.toggle('error', isError);
 }
 
-function fillList(select, rows, emptyText) {
-  select.textContent = '';
-  if (!rows.length) {
-    const none = el('option', '', emptyText);
-    none.disabled = true;
-    select.append(none);
-  }
-  for (const [value, text] of rows) {
-    const option = el('option', '', text);
-    option.value = value;
-    select.append(option);
-  }
+// Kept sites first, then the rest with the fullest on top.
+function orderSites() {
+  const kept = keptHosts();
+  const found = foundSites.map((site) => site.host);
+  siteOrder = [
+    ...kept.filter((host) => !found.includes(host)),
+    ...found.filter((host) => kept.includes(host)),
+    ...found.filter((host) => !kept.includes(host)),
+  ];
 }
 
-function renderDetailLists() {
-  const kept = keep[detailType.id] || [];
-  fillList(detail.found, foundSites.filter((site) => !kept.includes(site.host)).map((site) => [site.host, `${site.host} (${site.count})`]), t('keepNoneFound'));
-  fillList(detail.kept, kept.map((host) => [host, host]), t('keepNoneKept'));
+// What the box holds: a site name when it reads as one, otherwise plain text
+// to look for. "https://Example.com/page" reads as the site example.com.
+function typedQuery() {
+  const raw = detail.input.value.trim().toLowerCase();
+  if (!raw) return { text: '', site: null };
+  const { domains, invalid } = Sweep.parseWhitelist(raw);
+  const site = domains.length === 1 && !invalid.length ? domains[0] : null;
+  return { text: site || raw, site };
+}
+
+function siteRow(host, isKept, count) {
+  const row = el('li', isKept ? 'site kept' : 'site');
+  row.dataset.host = host;
+  const label = el('label');
+  label.title = host;
+  const toggle = el('input', 'switch');
+  toggle.type = 'checkbox';
+  toggle.checked = isKept;
+  toggle.setAttribute('role', 'switch');
+  toggle.addEventListener('change', () => {
+    setKept(toggle.checked ? [...keptHosts(), host] : keptHosts().filter((other) => other !== host), host);
+  });
+  // A letter stands in for the site's icon; fetching real ones would mean going online.
+  label.append(el('span', 'avatar', host.replace(/^www\./, '').charAt(0)), el('span', 'host', host));
+  if (count !== undefined) label.append(el('span', 'count', String(count)));
+  label.append(toggle);
+  row.append(label);
+  return row;
+}
+
+function renderSites() {
+  const kept = keptHosts();
+  const counts = new Map(foundSites.map((site) => [site.host, site.count]));
+  const { text, site } = typedQuery();
+  const shown = siteOrder.filter((host) => (keepFilter === 'all' || kept.includes(host)) && host.includes(text));
+
+  const scrolled = detail.list.scrollTop;
+  detail.list.textContent = '';
+
+  if (site && !siteOrder.includes(site)) {
+    // Typed in full and not in the list: offer to add it.
+    const row = el('li', 'add');
+    const button = el('button', '', t('keepAddSite', [site]));
+    button.type = 'button';
+    button.prepend(icon('plus'));
+    button.addEventListener('click', addTyped);
+    row.append(button);
+    detail.list.append(row);
+  } else if (!shown.length) {
+    detail.list.append(el('li', 'empty', t(text ? 'keepNoMatch' : keepFilter === 'kept' ? 'keepNoneKept' : 'keepNoneFound')));
+  }
+  for (const host of shown) detail.list.append(siteRow(host, kept.includes(host), counts.get(host)));
+  detail.list.scrollTop = scrolled;
+
+  for (const radio of detail.filter.querySelectorAll('input')) radio.checked = radio.value === keepFilter;
+  detail.filter.querySelector('[data-count="all"]').textContent = String(siteOrder.length);
+  detail.filter.querySelector('[data-count="kept"]').textContent = String(kept.length);
 }
 
 function keepNoteKey(typeId) {
-  if (!Sweep.canKeep(typeId)) return 'keepNoteUnsupported';
   return { history: 'keepNoteHistory', downloads: 'keepNoteDownloads', cookies: 'keepNoteCookies' }[typeId] || 'keepNoteSites';
 }
 
+// Only reached from the magnifier, which a tile has only when its data can be
+// kept site by site (see Sweep.canKeep).
 async function openDetail(type) {
   detailType = type;
   foundSites = [];
+  keepFilter = 'all';
+  detail.input.value = '';
   document.body.classList.add('detail-open');
   detail.root.hidden = false;
   detail.title.textContent = `${t('type_' + type.id)} · ${t('keepKept')}`;
   detail.note.textContent = t(keepNoteKey(type.id));
-  const supported = Sweep.canKeep(type.id);
-  detail.picker.hidden = !supported;
-  detail.form.hidden = !supported;
-  detail.root.dataset.loaded = supported ? '0' : '1';
+  detail.root.dataset.loaded = '0';
   setDetailStatus('');
-  if (!supported) return;
 
-  renderDetailLists();
+  orderSites();
+  renderSites();
   try {
     const sites = await Sweep.foundSites(type.id);
     if (detailType !== type) return; // another item was opened meanwhile
     foundSites = sites;
   } catch {
-    // No permission or no such API: the picker still works with typed sites.
+    // No permission or no such API: sites can still be typed in.
   }
-  renderDetailLists();
+  orderSites();
+  renderSites();
   detail.root.dataset.loaded = '1';
 }
 
@@ -175,11 +232,15 @@ function closeDetail() {
   refreshMarkers();
 }
 
-// Replaces the keep list of the open item and saves it.
-async function setKept(hosts) {
+// Replaces the keep list of the open item and saves it. `focusHost` is the row
+// whose switch was just flipped, so the keyboard stays on it.
+async function setKept(hosts, focusHost) {
   const type = detailType;
-  keep = { ...keep, [type.id]: hosts };
-  renderDetailLists();
+  keep = { ...keep, [type.id]: [...new Set(hosts)] };
+  // A newly typed site goes on top, where it can be seen.
+  for (const host of keep[type.id]) if (!siteOrder.includes(host)) siteOrder.unshift(host);
+  renderSites();
+  if (focusHost) detail.list.querySelector(`li[data-host="${CSS.escape(focusHost)}"] input`)?.focus();
   // Firefox can only spare cookies when it may list them, and only lets an
   // extension ask for that while a click is being handled, so ask first.
   let granted = true;
@@ -190,22 +251,8 @@ async function setKept(hosts) {
   setDetailStatus(granted ? '' : t('errCookiePermission'), !granted);
 }
 
-const selectedIn = (select) => [...select.selectedOptions].map((option) => option.value).filter(Boolean);
-
-detail.back.addEventListener('click', closeDetail);
-detail.add.addEventListener('click', () => {
-  const adding = selectedIn(detail.found);
-  if (adding.length) setKept([...new Set([...(keep[detailType.id] || []), ...adding])]);
-});
-detail.remove.addEventListener('click', () => {
-  const removing = selectedIn(detail.kept);
-  if (removing.length) setKept((keep[detailType.id] || []).filter((host) => !removing.includes(host)));
-});
-// Double-click moves one site across, as in most two-list pickers.
-detail.found.addEventListener('dblclick', () => detail.add.click());
-detail.kept.addEventListener('dblclick', () => detail.remove.click());
-detail.form.addEventListener('submit', (event) => {
-  event.preventDefault();
+// Keeps what is typed in the box, if it is a site.
+function addTyped() {
   const { domains, invalid } = Sweep.parseWhitelist(detail.input.value);
   if (invalid.length) {
     setDetailStatus(`${t('errInvalid')} ${invalid.join(', ')}`, true);
@@ -213,7 +260,38 @@ detail.form.addEventListener('submit', (event) => {
   }
   if (!domains.length) return;
   detail.input.value = '';
-  setKept([...new Set([...(keep[detailType.id] || []), ...domains])]);
+  setKept([...keptHosts(), ...domains]);
+}
+
+for (const [value, labelKey] of [['all', 'keepAll'], ['kept', 'keepKeptShort']]) {
+  const label = el('label');
+  const radio = el('input');
+  radio.type = 'radio';
+  radio.name = 'keepFilter';
+  radio.value = value;
+  radio.addEventListener('change', () => {
+    keepFilter = value;
+    renderSites();
+  });
+  const text = el('span', '', `${t(labelKey)} `);
+  const count = el('b');
+  count.dataset.count = value;
+  text.append(count);
+  label.append(radio, text);
+  detail.filter.append(label);
+}
+detail.filter.setAttribute('aria-label', t('keepKept'));
+detail.input.placeholder = t('keepSearch');
+detail.input.setAttribute('aria-label', t('keepSearch'));
+
+detail.back.addEventListener('click', closeDetail);
+detail.input.addEventListener('input', () => {
+  setDetailStatus('');
+  renderSites();
+});
+detail.form.addEventListener('submit', (event) => {
+  event.preventDefault();
+  addTyped();
 });
 
 function selectedCount() {
@@ -275,20 +353,25 @@ function renderTypes() {
     // The dot on the icon shows when this kind of data has something to clear.
     badge.append(el('span', 'dot'));
 
-    // The magnifier opens the list of what is here and what to always keep.
-    const look = el('button', (keep[type.id] || []).length ? 'look on' : 'look');
-    look.type = 'button';
-    look.dataset.look = type.id;
-    look.title = t('keepLook');
-    look.setAttribute('aria-label', `${t('type_' + type.id)}: ${t('keepLook')}`);
-    look.append(icon('search'));
-    look.addEventListener('click', (event) => {
-      event.preventDefault(); // the tile is a label; do not toggle its checkbox
-      event.stopPropagation();
-      openDetail(type);
-    });
+    tile.append(box, badge, text);
 
-    tile.append(box, badge, text, look);
+    // The magnifier opens the list of what is here and what to always keep,
+    // and is lit when the item has such a list. Data the browser can only
+    // clear all at once (form data, for one) has nothing to show, so no magnifier.
+    if (Sweep.canKeep(type.id)) {
+      const look = el('button', (keep[type.id] || []).length ? 'look on' : 'look');
+      look.type = 'button';
+      look.dataset.look = type.id;
+      look.title = t('keepLook');
+      look.setAttribute('aria-label', `${t('type_' + type.id)}: ${t('keepLook')}`);
+      look.append(icon('search'));
+      look.addEventListener('click', (event) => {
+        event.preventDefault(); // the tile is a label; do not toggle its checkbox
+        event.stopPropagation();
+        openDetail(type);
+      });
+      tile.append(look);
+    }
     markTile(tile);
     els.types.append(tile);
   }
@@ -472,7 +555,13 @@ api.storage.onChanged.addListener((changes, area) => {
   // Keep lists changed in another popup or tab.
   if (changes.keep && JSON.stringify(changes.keep.newValue || {}) !== JSON.stringify(keep)) {
     keep = changes.keep.newValue || {};
-    if (detailType) renderDetailLists(); else renderTypes();
+    if (detailType) {
+      // Sites kept elsewhere may not be listed here yet.
+      for (const host of keptHosts()) if (!siteOrder.includes(host)) siteOrder.unshift(host);
+      renderSites();
+    } else {
+      renderTypes();
+    }
     refreshMarkers();
   }
 });
