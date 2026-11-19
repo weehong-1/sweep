@@ -7,7 +7,7 @@ Firefox 版以公開上架的方式送到 <https://addons.mozilla.org>。大部�
 | 檔案 | 用途 |
 |---|---|
 | `amo-metadata.json` | 上架資料：分類、摘要、說明（英文和繁體中文）、首頁、授權、版本說明、給審核人員的說明。由腳本送出 |
-| `images\en\`、`images\zh_TW\` 的 `1-popup.png`、`2-settings.png`、`3-dark.png` | 截圖，在網頁上傳 |
+| `images\firefox\en\`、`images\firefox\zh_TW\` 的 `1-popup.png`、`2-settings.png`、`3-dark.png` | Firefox 版畫面的截圖，1280×800，在網頁上傳 |
 | `privacy-policy.md` | 隱私權政策，在網頁貼上（選填） |
 
 ## 1. 送出
@@ -24,12 +24,12 @@ Firefox 版以公開上架的方式送到 <https://addons.mozilla.org>。大部�
 
 到 <https://addons.mozilla.org/developers/addons> 點 Sweep，再點 **Edit Product Page**：
 
-- **Screenshots**：上傳 `images\en\` 的三張截圖。
+- **Screenshots**：上傳 `images\firefox\en\` 的三張截圖。
 - **Privacy Policy**：選填。要放的話，把 `privacy-policy.md` 的內容貼上。
 - **Support website**：`https://github.com/weehong-1/sweep/issues`
 - 確認名稱、摘要、說明、分類（Privacy & Security）都已經帶入。
 
-截圖裡的畫面是 Chromium 版，項目和 Firefox 版略有不同（Firefox 沒有「檔案系統」，有「已儲存的密碼」）。想要完全一致的話，換成 Firefox 版的截圖。
+這組截圖是在 Firefox 裡拍的，和 Chrome Web Store 用的那組（`images\en\`、`images\zh_TW\`）不同：Firefox 沒有「檔案系統」，有「已儲存的密碼」，也沒有保持 WhatsApp Web 和 Telegram Web 登入的功能。
 
 ## 3. 審核
 
