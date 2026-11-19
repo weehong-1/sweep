@@ -12,6 +12,7 @@
 | `images\en\1-popup.png`、`2-settings.png`、`3-dark.png` | 英文截圖，1280×800 |
 | `images\zh_TW\1-popup.png`、`2-settings.png`、`3-dark.png` | 繁體中文截圖，1280×800 |
 | `images\en\promo-small-440x280.png`、`images\zh_TW\promo-small-440x280.png` | 小型宣傳圖，440×280（選填） |
+| `images\en\promo-marquee-1400x560.png`、`images\zh_TW\promo-marquee-1400x560.png` | 大型宣傳圖，1400×560（選填） |
 | `privacy-policy.md` | 隱私權政策全文，需要放到一個公開網址 |
 
 128×128 的商店圖示已經在壓縮檔裡，不用另外上傳。
@@ -21,7 +22,8 @@
 1. 用 Google 帳號登入後台，同意開發者協議，付一次性的註冊費。
 2. 在後台的 **Account** 頁面：
    - 填發布者名稱，並驗證聯絡用的電子郵件。
-   - 在 **Trusted testers** 填入要安裝 Sweep 的 Google 帳號電子郵件（自己的也要填），存檔。
+   - 完成 Trader／Non-trader 聲明。個人、非營利發布選 `Non-trader`。
+   - 只有要先以 `Private` 試用時，才需要在 **Trusted testers** 填入要安裝 Sweep 的 Google 帳號電子郵件（自己的也要填）。
 3. 把 `privacy-policy.md` 的內容放到一個任何人都能開啟的網址，記下網址。
 
 ## 1. Package（套件）
@@ -88,7 +90,17 @@ Sweep 沒有帳號、沒有分析追蹤、沒有廣告，設定只存在你的�
 
 **Screenshots（截圖）**：上傳 `images\en\` 裡的三張。新增了繁體中文的話，在該語言下上傳 `images\zh_TW\` 的三張。
 
-**Small promo tile（小型宣傳圖）**：選填，上傳 `promo-small-440x280.png`。
+**Small promo tile（小型宣傳圖）**：選填，上傳 `promo-small-440x280.png`。公開上架時建議放，商店的搜尋結果和分類頁會用到它。
+
+**Marquee promo tile（大型宣傳圖）**：選填，上傳 `promo-marquee-1400x560.png`。只有擴充功能被商店選為精選時才會用到。
+
+**Localised promo video（宣傳影片）**：選填，只接受 YouTube 連結。把 `video\sweep-demo.mp4` 上傳到 YouTube（可見度選「公開」或「不公開」都可以，不能選「私人」），再把影片網址貼進來。
+
+**Support URL（支援網址）**：選填。公開上架時建議填，讓使用者有地方回報問題：
+
+```
+https://github.com/weehong-1/sweep/issues
+```
 
 ## 3. Privacy（隱私權）
 
@@ -135,19 +147,24 @@ Used for three things, all on the user's own device. (1) To check whether the do
 
 ## 4. Distribution（發布）
 
-- **Visibility（可見度）**：選 `Private`，並勾選 `Trusted testers`。
+- **Visibility（可見度）**：選 `Public`，任何人都能在商店搜尋到並安裝。
 - **Distribution（地區）**：保留全部地區即可。
 - **Pricing**：免費。
 
+想先自己試用再公開的話，可以先選 `Private` 並勾選 `Trusted testers` 送審，確認沒問題後再把可見度改成 `Public`。更改可見度要再送審一次。
+
 ## 5. 送審
 
-按 **Submit for review**。私人項目和公開項目走同樣的審核流程，通常需要幾天。通過後，受信任的測試者用自己的 Google 帳號登入 Chrome，開啟後台顯示的商店網址就能安裝。
+按 **Submit for review**。審核通常需要幾天。通過後，任何人都能從商店頁面安裝，Brave、Edge 等 Chromium 系瀏覽器也可以。
+
+送審時可以選擇通過後自動發布，或是先保留、由你手動按發布。想在公開前再看一次商店頁面的話選後者。
 
 ## 可能被審核問到的地方
 
 - **單一用途**：商店要求每個擴充功能只有一個明確的用途。「檢查瀏覽器更新」和「清除瀏覽資料」不是同一件事，審核人員有可能提出疑問。如果因此被退件，把更新檢查從上架的版本拿掉是最直接的解法。
 - **`history` 權限**：這是敏感權限，審核會比較仔細。上面的用途說明已經寫明三個用途都只在本機進行：判斷要不要顯示圓點、在保留清單裡列出網站名稱、清除時留下保留的網站。
-- **在 Brave 安裝私人項目**：私人項目要靠 Google 帳號辨識測試者。Brave 沒有內建的 Google 帳號登入，能不能安裝私人項目我沒有驗證過。如果裝不了，把可見度改成 `Unlisted`（不公開，有連結才能安裝）就可以在 Brave 安裝。
+- **公開後會顯示的個人資訊**：商店頁面會公開顯示發布者名稱和聯絡用的電子郵件。不想用私人信箱的話，先在後台的 Settings 換成另一個信箱。
+- **Trader／Non-trader 聲明**：公開上架必須在後台的 Settings 完成這項聲明。個人、非營利發布選 `Non-trader`。
 
 ## 之後要更新版本
 
